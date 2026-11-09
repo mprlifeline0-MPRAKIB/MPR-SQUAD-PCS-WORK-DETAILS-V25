@@ -1,10 +1,12 @@
-name: Build MPR SQUAD APK
+
+name: Build MPR SQUAD PCS v2.9 APK
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    paths:
+      - 'MPR-SQUAD-PCS-v2.9-admin-social-links.zip'
+      - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
@@ -20,23 +22,26 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Extract source ZIP
+      - name: Extract Android project
         run: |
-          unzip -q MPR-SQUAD-PCS-WORK-DETAILS-v2.5-multicolor-source.zip -d source
+          unzip -o MPR-SQUAD-PCS-v2.9-admin-social-links.zip -d .
+
+      - name: Set app version
+        run: |
+          sed -i 's/versionName = "2.8"/versionName = "2.9"/' MPR-SQUAD-PCS-v2.9-package/android/app/build.gradle.kts
+          sed -i 's/v2.6/v2.9/g' MPR-SQUAD-PCS-v2.9-package/android/app/src/main/assets/index.html
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.9'
 
       - name: Build APK
-        run: |
-          cd source/MPR_SQUAD_Android_Project
-          gradle assembleDebug
+        working-directory: MPR-SQUAD-PCS-v2.9-package/android
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MPR-SQUAD-debug-APK
-          path: source/MPR_SQUAD_Android_Project/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          name: MPR-SQUAD-PCS-v2.9-debug-apk
+          path: MPR-SQUAD-PCS-v2.9-package/android/app/build/outputs/apk/debug/app-debug.apk
