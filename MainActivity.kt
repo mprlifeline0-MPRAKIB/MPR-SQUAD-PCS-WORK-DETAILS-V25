@@ -31,16 +31,28 @@ class MainActivity : Activity() {
         web.settings.allowFileAccess = true
         web.settings.allowContentAccess = true
         web.settings.javaScriptCanOpenWindowsAutomatically = true
-        web.webViewClient = WebViewClient()
+        web.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                if (url.isNullOrBlank()) return false
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (_: Exception) { }
+                    return true
+                }
+                return false
+            }
+        }
         web.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(v: WebView?, callback: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
                 fileCallback?.onReceiveValue(null)
                 fileCallback = callback
+                val accepted = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyArray()
+                val mimeTypes = accepted.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotBlank() }
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "application/json"
+                    type = if (mimeTypes.size == 1) mimeTypes[0] else "*/*"
+                    if (mimeTypes.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toTypedArray())
                 }
-                startActivityForResult(Intent.createChooser(intent, "ব্যাকআপ ফাইল নির্বাচন করুন"), fileRequest)
+                startActivityForResult(Intent.createChooser(intent, "ফাইল নির্বাচন করুন"), fileRequest)
                 return true
             }
         }

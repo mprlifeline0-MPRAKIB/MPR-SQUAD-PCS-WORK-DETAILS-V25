@@ -8,10 +8,10 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "com.mprlifeline.pcs"
-        minSdk = 29
+        minSdk = 23
         targetSdk = 35
-        versionCode = 28
-        versionName = "2.8"
+        versionCode = 33
+        versionName = "3.3"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

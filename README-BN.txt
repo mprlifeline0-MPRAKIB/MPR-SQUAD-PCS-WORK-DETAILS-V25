@@ -1,19 +1,21 @@
-MPR SQUAD P.C.S WORK DETAILS — Android WebView project (v2.9)
+MPR SQUAD P.C.S WORK DETAILS — Android Project
 
-এই ফোল্ডারটি Android Studio-তে খোলার উপযোগী একটি Android project source।
-এটি নিজে APK নয়। Android SDK ও Gradle দিয়ে Build > Build APK(s) চালাতে হবে।
+এই ZIP-এ Android Studio/Gradle Android প্রজেক্টের ফাইল, WebView অ্যাপ, আপনার HTML, launcher icon এবং GitHub Actions workflow আছে।
 
-ফিচার:
-- assets/index.html-এ অফলাইন হিসাব অ্যাপ
-- WebView DOM storage; অ্যাপের নিজস্ব ডেটা সংরক্ষণ
-- PDF রিপোর্টের জন্য Android Print framework
-- JSON ব্যাকআপ ও CSV ফাইল Downloads/MPR SQUAD-এ সংরক্ষণ
-- JSON ব্যাকআপ বেছে Restore করার file picker
+গুরুত্বপূর্ণ: এটি Android project source; APK ফাইল নয়। GitHub Actions দিয়ে APK তৈরি করতে হবে। এই পরিবেশে Android SDK/Gradle build চালিয়ে APK পরীক্ষা করা হয়নি।
+
+ফোন দিয়ে APK তৈরির সহজ ধাপ:
+১) ZIP Extract করুন।
+২) GitHub অ্যাপ/ব্রাউজারে আপনার আগের MPR SQUAD PCS repository খুলুন।
+৩) repository-র Code > Add file > Upload files ব্যবহার করুন।
+৪) Extract করা MPR-SQUAD-PCS-ANDROID-PROJECT ফোল্ডারের ভেতরের সব ফাইল ও ফোল্ডার repository-র root-এ আপলোড করুন (ফোল্ডারের ভিতরে আরেকটি project folder তৈরি করবেন না)।
+৫) Commit changes করুন।
+৬) Actions ট্যাব > “Build MPR SQUAD PCS Android APK” workflow > Run workflow চাপুন।
+৭) কাজ সফল হলে workflow run-এর নিচে Artifacts থেকে MPR-SQUAD-PCS-debug-apk ZIP ডাউনলোড করুন।
+৮) Artifact ZIP Extract করে app-debug.apk ইনস্টল করুন। Android জিজ্ঞেস করলে এই উৎস থেকে ইনস্টল অনুমতি দিন।
 
 সতর্কতা:
-- এই সোর্স এই পরিবেশে Android SDK দিয়ে compile/install পরীক্ষা করা যায়নি।
-- নতুন APK ইনস্টল করার আগে পুরোনো অ্যাপ থেকে JSON backup নিন।
-- YouTube QR এখনো যোগ করা হয়নি; প্রকৃত QR image অথবা সঠিক YouTube URL দরকার।
-
-
-v2.9: Developer Details স্ক্রিনে Facebook, Instagram, TikTok, YouTube, WhatsApp, Telegram, Website বা অন্যান্য প্ল্যাটফর্মের URL ও QR ছবি যোগ/পরিবর্তন/মুছতে পারবেন। প্রথমবার Admin PIN তৈরি করতে হবে। QR ছবি ২ MB-এর কম রাখুন। PIN লোকাল ডেটায় থাকে; এটি সার্ভার-স্তরের নিরাপত্তা নয়।
+- পুরোনো repository ফাইল overwrite করার আগে repository-র backup রাখুন।
+- একই project root-এ settings.gradle.kts, build.gradle.kts, gradle.properties, app/ এবং .github/ থাকতে হবে।
+- APK build সফল হলেই সব feature সঠিক প্রমাণ হয় না; ইনস্টল করে duty, bill, expense, payment status, theme, backup/restore এবং PDF পরীক্ষা করুন।
+- অ্যাপের তথ্য এই ডিভাইসের local storage-এ থাকে; নিয়মিত JSON backup নিন।
