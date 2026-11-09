@@ -1,0 +1,37 @@
+name: Build MPR SQUAD PCS Android APK
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '*.zip'
+      - '.github/workflows/build-apk.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Locate and extract Android project ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="MPR-SQUAD-PCS-COMPLETE-SOURCE-UPDATED.zip"
+          test -f "$ZIP_FILE" || { echo "Missing $ZIP_FILE in repository root"; exit 1; }
+          mkdir -p /tmp/mpr-project
+          unzip -q "$ZIP_FILE" -d /tmp/mpr-project
+          test -d /tmp/mpr-project/app || { echo "ZIP does not contain app/ at its root"; exit 1; }
+          cp -a /tmp/mpr-project/. .
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build debug APK
+        run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MPR-SQUAD-PCS-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
