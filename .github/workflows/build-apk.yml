@@ -1,20 +1,26 @@
 
-name: Build MPR SQUAD PCS v2.9 APK
+name: Build MPR SQUAD PCS APK
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'MPR-SQUAD-PCS-v2.9-admin-social-links.zip'
+      - 'MPR-SQUAD-PCS-PATCHED-SOURCE.zip'
       - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Extract patched project
+        run: |
+          set -e
+          unzip -q MPR-SQUAD-PCS-PATCHED-SOURCE.zip -d /tmp/mpr-project
+          test -d /tmp/mpr-project/app
+          rsync -a --exclude='.github' /tmp/mpr-project/ ./
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -22,26 +28,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Extract Android project
-        run: |
-          unzip -o MPR-SQUAD-PCS-v2.9-admin-social-links.zip -d .
-
-      - name: Set app version
-        run: |
-          sed -i 's/versionName = "2.8"/versionName = "2.9"/' MPR-SQUAD-PCS-v2.9-package/android/app/build.gradle.kts
-          sed -i 's/v2.6/v2.9/g' MPR-SQUAD-PCS-v2.9-package/android/app/src/main/assets/index.html
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
       - name: Build APK
-        working-directory: MPR-SQUAD-PCS-v2.9-package/android
         run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MPR-SQUAD-PCS-v2.9-debug-apk
-          path: MPR-SQUAD-PCS-v2.9-package/android/app/build/outputs/apk/debug/app-debug.apk
+          name: MPR-SQUAD-PCS-UPDATED-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
