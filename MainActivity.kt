@@ -45,8 +45,14 @@ class MainActivity : Activity() {
             override fun onShowFileChooser(v: WebView?, callback: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
                 fileCallback?.onReceiveValue(null)
                 fileCallback = callback
-                val accepted = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyList()
-                val mimeTypes = accepted.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotBlank() }
+                val accepted: List<String> = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyList()
+                val mimeTypes = ArrayList<String>()
+                for (value in accepted) {
+                    for (part in value.split(',')) {
+                        val cleaned = part.trim()
+                        if (cleaned.isNotEmpty()) mimeTypes.add(cleaned)
+                    }
+                }
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
                     type = if (mimeTypes.size == 1) mimeTypes[0] else "*/*"
@@ -95,6 +101,7 @@ class MainActivity : Activity() {
                 printView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
             }
         }
+        @JavascriptInterface fun exitApp() { runOnUiThread { finish() } }
     }
 
     @Deprecated("Deprecated in Android API")
@@ -107,7 +114,9 @@ class MainActivity : Activity() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        if (::web.isInitialized && web.canGoBack()) web.goBack() else super.onBackPressed()
+        if (::web.isInitialized) web.evaluateJavascript("if(!goBack()){AndroidBridge.exitApp()}", null)
+        else super.onBackPressed()
     }
 }
