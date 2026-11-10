@@ -1,0 +1,8 @@
+MPR SQUAD P.C.S WORK DETAILS - ENHANCED SOURCE
+
+This package is based on the supplied ONE-BUILD project. It includes the existing Android wrapper, assets, and a single GitHub Actions workflow.
+Enhancements in this revision: transport dropdown choices, screen transition animation (respects reduced-motion), expanded location-wise breakdown, and readable payment symbols in generic PDF tables.
+
+Important: this is not yet a fully verified release. Android APK compilation and device testing must be completed in GitHub Actions / on the user's phone. Review all requested features against the project before treating it as complete.
+
+Upload this ZIP to the repository root using the exact filename MPR-SQUAD-PCS-ENHANCED-SOURCE.zip, then run Actions.
