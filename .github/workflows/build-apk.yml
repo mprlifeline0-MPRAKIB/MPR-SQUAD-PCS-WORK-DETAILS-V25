@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'MPR-SQUAD-PCS-PATCHED-SOURCE.zip'
+      - 'MPR-SQUAD-PCS-ENHANCED-SOURCE.zip'
       - '.github/workflows/build-apk.yml'
 
 jobs:
@@ -15,10 +15,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract patched project
+      - name: Extract enhanced project
         run: |
           set -e
-          unzip -q MPR-SQUAD-PCS-PATCHED-SOURCE.zip -d /tmp/mpr-project
+          unzip -q MPR-SQUAD-PCS-ENHANCED-SOURCE.zip -d /tmp/mpr-project
           test -d /tmp/mpr-project/app
           rsync -a --exclude='.github' /tmp/mpr-project/ ./
 
