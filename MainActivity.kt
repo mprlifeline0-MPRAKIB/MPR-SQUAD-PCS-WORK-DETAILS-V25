@@ -45,7 +45,7 @@ class MainActivity : Activity() {
             override fun onShowFileChooser(v: WebView?, callback: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
                 fileCallback?.onReceiveValue(null)
                 fileCallback = callback
-                val accepted = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyArray()
+                val accepted = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyList()
                 val mimeTypes = accepted.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotBlank() }
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
