@@ -1,26 +1,27 @@
 
-name: Build MPR SQUAD PCS APK
+name: MPR SQUAD PCS APK Build
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'MPR-SQUAD-PCS-PATCHED-SOURCE.zip'
+      - 'MPR-SQUAD-DAILY-WORK-DETAILS-v4.2-BUILD-READY-SOURCE.zip'
       - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Extract patched project
+      - name: Extract project
         run: |
           set -e
-          unzip -q MPR-SQUAD-PCS-PATCHED-SOURCE.zip -d /tmp/mpr-project
-          test -d /tmp/mpr-project/app
-          rsync -a --exclude='.github' /tmp/mpr-project/ ./
+          unzip -q MPR-SQUAD-DAILY-WORK-DETAILS-v4.2-BUILD-READY-SOURCE.zip -d /tmp/mpr
+          PROJECT_DIR=$(find /tmp/mpr -name settings.gradle -o -name settings.gradle.kts | head -1 | xargs dirname)
+          test -n "$PROJECT_DIR"
+          cp -a "$PROJECT_DIR"/. ./
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -39,6 +40,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MPR-SQUAD-PCS-UPDATED-APK
+          name: MPR-SQUAD-PCS-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
