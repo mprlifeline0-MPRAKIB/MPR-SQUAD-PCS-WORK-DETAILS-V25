@@ -48,7 +48,9 @@ jobs:
               p=Path(name)
               s=p.read_text(encoding="utf-8")
               if "dwd-completion.js" not in s:
-                  s=s.replace("</body>", '<script src="dwd-completion.js"></script>\\n</body>')
+                  parts=s.rsplit("</body>",1)
+                  if len(parts)!=2: raise SystemExit(f"Closing body tag missing in {name}")
+                  s=parts[0]+'<script src="dwd-completion.js"></script>\\n</body>'+parts[1]
               p.write_text(s,encoding="utf-8")
           p=Path("app/src/main/java/com/mprlifeline/pcs/MainActivity.kt")
           s=p.read_text(encoding="utf-8")
