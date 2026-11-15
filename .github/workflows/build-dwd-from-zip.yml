@@ -1,0 +1,122 @@
+name: Build DWD Daily Work Details v4.4 APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'DWD-v4.4-SOURCE.zip'
+      - '.github/workflows/build-dwd-from-zip.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dwd-v4.4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Extract, build and verify DWD v4.4
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract the uploaded DWD source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="DWD-v4.4-SOURCE.zip"
+          test -s "$ZIP"
+          mkdir -p /tmp/dwd-source
+          unzip -q "$ZIP" -d /tmp/dwd-source
+          test -s /tmp/dwd-source/app/build.gradle.kts
+          test -s /tmp/dwd-source/app/src/main/AndroidManifest.xml
+          test -s /tmp/dwd-source/app/src/main/java/com/mprlifeline/pcs/MainActivity.kt
+          cp -a /tmp/dwd-source/. "$GITHUB_WORKSPACE/"
+          echo "DWD v4.4 source ZIP extracted and checked."
+
+      - name: Verify app identity and launcher icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'versionCode = 44' app/build.gradle.kts
+          grep -q 'versionName = "4.4"' app/build.gradle.kts
+          grep -q 'applicationId = "com.mprlifeline.pcs"' app/build.gradle.kts
+          grep -q 'DWD – Daily Work Details' app/src/main/AndroidManifest.xml
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            test -s "app/src/main/res/mipmap-${density}/ic_launcher.png"
+            test -s "app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+          done
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          python3 - <<'PYCODE'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.active = False
+                  self.parts = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script":
+                      self.active = True
+              def handle_endtag(self, tag):
+                  if tag == "script":
+                      self.active = False
+              def handle_data(self, data):
+                  if self.active:
+                      self.parts.append(data)
+          parser = Scripts()
+          parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          Path("/tmp/dwd-inline.js").write_text("\n".join(parser.parts), encoding="utf-8")
+          if not parser.parts:
+              raise SystemExit("No inline JavaScript found in index.html")
+          PYCODE
+          node --check /tmp/dwd-inline.js
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        run: gradle --no-daemon clean assembleDebug
+
+      - name: Confirm APK exists and prepare download
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          mkdir -p release
+          cp "$APK" "release/DWD-Daily-Work-Details-v4.4-debug.apk"
+          sha256sum "release/DWD-Daily-Work-Details-v4.4-debug.apk" | tee release/SHA256SUMS.txt
+          cat > release/BUILD-RESULT-BN.txt <<'EOF'
+          DWD v4.4 APK Build সফল।
+          APK ফাইল: DWD-Daily-Work-Details-v4.4-debug.apk
+          এই APK GitHub Actions Artifact থেকে ডাউনলোড করুন।
+          EOF
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DWD-Daily-Work-Details-v4.4-APK
+          path: |
+            release/DWD-Daily-Work-Details-v4.4-debug.apk
+            release/SHA256SUMS.txt
+            release/BUILD-RESULT-BN.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
