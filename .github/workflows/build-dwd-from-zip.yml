@@ -52,33 +52,62 @@ jobs:
                   if len(parts)!=2: raise SystemExit(f"Closing body tag missing in {name}")
                   s=parts[0]+'<script src="dwd-completion.js"></script>\\n</body>'+parts[1]
               p.write_text(s,encoding="utf-8")
+          # Add APK-sharing support with AndroidX FileProvider.
+          p=Path("app/build.gradle.kts")
+          s=p.read_text(encoding="utf-8")
+          if 'androidx.core:core' not in s:
+              s += '\n\ndependencies { implementation("androidx.core:core:1.13.1") }\n'
+              p.write_text(s,encoding="utf-8")
+          x=Path("app/src/main/res/xml")
+          x.mkdir(parents=True,exist_ok=True)
+          (x/"dwd_file_paths.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <cache-path name="shared_apk" path="shared_apk/" />
+          </paths>
+          ''',encoding="utf-8")
+          p=Path("app/src/main/AndroidManifest.xml")
+          s=p.read_text(encoding="utf-8")
+          provider='''        <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="com.mprlifeline.pcs.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/dwd_file_paths" />
+                  </provider>
+          '''
+          if "com.mprlifeline.pcs.fileprovider" not in s:
+              s=s.replace("</application>",provider+"    </application>")
+              p.write_text(s,encoding="utf-8")
           p=Path("app/src/main/java/com/mprlifeline/pcs/MainActivity.kt")
           s=p.read_text(encoding="utf-8")
-          if "fun shareText(" not in s:
-              needle='        @JavascriptInterface fun printHtml(html: String) {'
-              bridge='''        @JavascriptInterface fun shareText(title: String, content: String) {
+          if "fun shareAppApk()" not in s:
+              s=s.replace("import android.widget.Toast","import android.widget.Toast\nimport androidx.core.content.FileProvider\nimport java.io.File")
+              needle="        @JavascriptInterface fun printHtml(html: String) {"
+              bridge='''        @JavascriptInterface fun shareAppApk() {
                       runOnUiThread {
                           try {
+                              val source = File(applicationInfo.sourceDir)
+                              val dir = File(cacheDir, "shared_apk").apply { mkdirs() }
+                              val apk = File(dir, "DWD-Daily-Work-Details-v4.4.apk")
+                              source.inputStream().use { input -> apk.outputStream().use { output -> input.copyTo(output) } }
+                              val uri = FileProvider.getUriForFile(this@MainActivity, "com.mprlifeline.pcs.fileprovider", apk)
                               val send = Intent(Intent.ACTION_SEND).apply {
-                                  type = "text/plain"
-                                  putExtra(Intent.EXTRA_SUBJECT, title)
-                                  putExtra(Intent.EXTRA_TEXT, content)
+                                  type = "application/vnd.android.package-archive"
+                                  putExtra(Intent.EXTRA_STREAM, uri)
+                                  addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                               }
-                              startActivity(Intent.createChooser(send, "হিসাব Share করুন"))
+                              startActivity(Intent.createChooser(send, "DWD অ্যাপটি অন্যকে পাঠান"))
                           } catch (e: Exception) {
-                              Toast.makeText(this@MainActivity, "Share করা যায়নি: ${e.message}", Toast.LENGTH_LONG).show()
+                              Toast.makeText(this@MainActivity, "APK Share করা যায়নি: ${e.message}", Toast.LENGTH_LONG).show()
                           }
                       }
                   }
 
           '''
               if needle not in s: raise SystemExit("Could not locate Android share bridge insertion point")
-              p.write_text(s.replace(needle,bridge+needle),encoding="utf-8")
-          PY
-          node --check dwd-completion.js
-          echo "Animated profile, offline search and Android share patch applied."
-
-      - name: Verify app identity and launcher icons
+              s=s.replace(needle,bridge+needle)
+              p.write_text(s,encoding="utf-8")
+                - name: Verify app identity and launcher icons
         shell: bash
         run: |
           set -euo pipefail
