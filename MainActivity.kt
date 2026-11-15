@@ -15,12 +15,14 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import android.os.SystemClock
 import java.io.OutputStream
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private val fileRequest = 4102
+    private var lastHomeBackAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,8 +47,10 @@ class MainActivity : Activity() {
             override fun onShowFileChooser(v: WebView?, callback: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
                 fileCallback?.onReceiveValue(null)
                 fileCallback = callback
-                val accepted = params?.acceptTypes?.filter { it.isNotBlank() } ?: emptyArray()
-                val mimeTypes = accepted.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotBlank() }
+                val accepted: List<String> = params?.acceptTypes?.filter { type -> type.isNotBlank() } ?: emptyList()
+                val mimeTypes: List<String> = accepted.flatMap { acceptedType -> acceptedType.split(",") }
+                    .map { mimeType -> mimeType.trim() }
+                    .filter { mimeType -> mimeType.isNotBlank() }
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
                     type = if (mimeTypes.size == 1) mimeTypes[0] else "*/*"
@@ -108,6 +112,21 @@ class MainActivity : Activity() {
     }
 
     override fun onBackPressed() {
-        if (::web.isInitialized && web.canGoBack()) web.goBack() else super.onBackPressed()
+        if (!::web.isInitialized) { super.onBackPressed(); return }
+        web.evaluateJavascript("(document.querySelector('.screen.active')?.id || 'homeScreen')") { value ->
+            val active = value?.trim('"') ?: "homeScreen"
+            if (active != "homeScreen") {
+                web.evaluateJavascript("window.appBackFromAndroid ? window.appBackFromAndroid() : false", null)
+                lastHomeBackAt = 0L
+            } else {
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastHomeBackAt < 2000L) {
+                    finish()
+                } else {
+                    lastHomeBackAt = now
+                    Toast.makeText(this, "অ্যাপ বন্ধ করতে আবার Back চাপুন", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 }

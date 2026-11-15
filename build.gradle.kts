@@ -10,8 +10,8 @@ android {
         applicationId = "com.mprlifeline.pcs"
         minSdk = 23
         targetSdk = 35
-        versionCode = 33
-        versionName = "3.3"
+        versionCode = 43
+        versionName = "4.3"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
