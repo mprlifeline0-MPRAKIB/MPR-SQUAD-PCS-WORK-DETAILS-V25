@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'DWD-v4.4-SOURCE.zip'
+      - 'dwd-completion.js'
       - '.github/workflows/build-dwd-from-zip.yml'
 
 permissions:
@@ -36,6 +37,44 @@ jobs:
           test -s /tmp/dwd-source/app/src/main/java/com/mprlifeline/pcs/MainActivity.kt
           cp -a /tmp/dwd-source/. "$GITHUB_WORKSPACE/"
           echo "DWD v4.4 source ZIP extracted and checked."
+      - name: Apply completion features to source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp dwd-completion.js app/src/main/assets/dwd-completion.js
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ("index.html", "app/src/main/assets/index.html"):
+              p=Path(name)
+              s=p.read_text(encoding="utf-8")
+              if "dwd-completion.js" not in s:
+                  s=s.replace("</body>", '<script src="dwd-completion.js"></script>\\n</body>')
+              p.write_text(s,encoding="utf-8")
+          p=Path("app/src/main/java/com/mprlifeline/pcs/MainActivity.kt")
+          s=p.read_text(encoding="utf-8")
+          if "fun shareText(" not in s:
+              needle='        @JavascriptInterface fun printHtml(html: String) {'
+              bridge='''        @JavascriptInterface fun shareText(title: String, content: String) {
+                      runOnUiThread {
+                          try {
+                              val send = Intent(Intent.ACTION_SEND).apply {
+                                  type = "text/plain"
+                                  putExtra(Intent.EXTRA_SUBJECT, title)
+                                  putExtra(Intent.EXTRA_TEXT, content)
+                              }
+                              startActivity(Intent.createChooser(send, "হিসাব Share করুন"))
+                          } catch (e: Exception) {
+                              Toast.makeText(this@MainActivity, "Share করা যায়নি: ${e.message}", Toast.LENGTH_LONG).show()
+                          }
+                      }
+                  }
+
+          '''
+              if needle not in s: raise SystemExit("Could not locate Android share bridge insertion point")
+              p.write_text(s.replace(needle,bridge+needle),encoding="utf-8")
+          PY
+          node --check dwd-completion.js
+          echo "Animated profile, offline search and Android share patch applied."
 
       - name: Verify app identity and launcher icons
         shell: bash
