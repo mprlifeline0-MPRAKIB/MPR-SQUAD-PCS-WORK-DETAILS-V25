@@ -107,6 +107,28 @@ jobs:
               if needle not in s: raise SystemExit("Could not locate Android share bridge insertion point")
               s=s.replace(needle,bridge+needle)
               p.write_text(s,encoding="utf-8")
+          # Expose the native Android share sheet for JSON/text backups.
+          if "fun shareText(" not in s:
+              needle="        @JavascriptInterface fun printHtml(html: String) {"
+              bridge='''        @JavascriptInterface fun shareText(title: String, content: String) {
+                      runOnUiThread {
+                          try {
+                              val send = Intent(Intent.ACTION_SEND).apply {
+                                  type = "text/plain"
+                                  putExtra(Intent.EXTRA_SUBJECT, title)
+                                  putExtra(Intent.EXTRA_TEXT, content)
+                              }
+                              startActivity(Intent.createChooser(send, "হিসাবের ব্যাকআপ Share করুন"))
+                          } catch (e: Exception) {
+                              Toast.makeText(this@MainActivity, "ব্যাকআপ Share করা যায়নি: ${e.message}", Toast.LENGTH_LONG).show()
+                          }
+                      }
+                  }
+
+              '''
+              if needle not in s: raise SystemExit("Could not locate text-share bridge insertion point")
+              s=s.replace(needle,bridge+needle)
+              p.write_text(s,encoding="utf-8")
       - name: Verify app identity and launcher icons
         shell: bash
         run: |
@@ -125,6 +147,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check app.js
+          node --check dwd-completion.js
           python3 - <<'PYCODE'
           from html.parser import HTMLParser
           from pathlib import Path

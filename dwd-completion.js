@@ -9,7 +9,7 @@ const css=`
 .developer-name{animation:dwdNameGlow 3.2s ease-in-out infinite;transform:translateZ(24px)}
 #dwdSearchPanel{display:none;position:absolute;right:12px;top:calc(100% + 6px);width:min(92vw,420px);padding:10px;background:#091b30;border:1px solid #31516e;border-radius:12px;box-shadow:0 10px 30px #0009;z-index:20}
 #dwdSearchPanel.open{display:block}#dwdSearchPanel input{width:100%;background:white;color:#172536}
-#dwdSearchResults{max-height:55vh;overflow:auto;margin-top:8px;color:white}
+#dwdSearchResults{max-height:55vh;overflow:auto;margin-top:8px;color:white}#dwdSearchResults .card{color:var(--ink);background:var(--card)}
 #menu .dwd-accordion-head{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;margin:12px 0 0;background:#102d4a;color:#fff;border:1px solid #31516e}
 #menu .dwd-accordion-head .dwd-chevron{transition:transform .2s}#menu .dwd-accordion-head[aria-expanded=true] .dwd-chevron{transform:rotate(180deg)}
 #menu .dwd-accordion-body{display:none;padding:2px 0 8px 12px;border-left:2px solid #e9b44c;margin-left:7px}#menu .dwd-accordion-body.open{display:block}
@@ -33,4 +33,55 @@ inp?.addEventListener('input',()=>search(inp.value));
 window.dwdShareAll=()=>{let data;try{data=JSON.stringify(JSON.parse(localStorage.getItem('mpr_squad_daily_work_details_v1')||'{}'),null,2)}catch(e){alert('তথ্য প্রস্তুত করা যায়নি');return}const title='MPR SQUAD DWD — হিসাবের ব্যাকআপ';if(window.AndroidBridge?.shareText){window.AndroidBridge.shareText(title,data);return}if(navigator.share)navigator.share({title,text:data}).catch(()=>{});else alert('এই ব্রাউজারে Share সুবিধা নেই')};
 if(nav&&!nav.querySelector('.dwd-apk-share')){const b=document.createElement('button');b.className='dwd-apk-share';b.type='button';b.textContent='📲 সম্পূর্ণ অ্যাপ Share / অন্যকে পাঠান';b.addEventListener('click',()=>{if(window.AndroidBridge?.shareAppApk)window.AndroidBridge.shareAppApk();else alert('APK Share সুবিধা Android অ্যাপে ব্যবহার করুন।')});nav.appendChild(b)}
 const backupCard=[...document.querySelectorAll('#backupScreen .card')].find(x=>x.textContent.includes('ব্যাকআপ'));if(backupCard&&!backupCard.querySelector('.dwd-share-btn')){const b=document.createElement('button');b.className='dwd-share-btn secondary';b.textContent='📤 হিসাবের ব্যাকআপ Share করুন';b.onclick=window.dwdShareAll;backupCard.appendChild(b)}
+
+// Keep newly entered date-based records visible when they belong to an earlier month.
+function dwdFollowEntryMonth(formId, monthId) {
+ const form=document.getElementById(formId), month=document.getElementById(monthId);
+ if(!form||!month||form.dataset.dwdMonthFollow==="1")return;
+ form.dataset.dwdMonthFollow="1";
+ form.addEventListener("submit",function(){
+  const date=form.elements.date?.value;
+  if(date&&/^\d{4}-\d{2}-\d{2}$/.test(date))month.value=date.slice(0,7);
+ },true);
+}
+dwdFollowEntryMonth("dutyForm","dutyMonth");
+dwdFollowEntryMonth("billForm","billMonth");
+dwdFollowEntryMonth("personExpenseForm","personMonth");
+
+// A dedicated all-month view prevents older bills from appearing to vanish.
+const dwdBillMonth=document.getElementById("billMonth");
+const dwdBillRows=document.getElementById("billRows");
+const dwdBillOriginalRender=window.renderBills;
+let dwdShowAllBills=false;
+function dwdRenderAllBills(){
+ const all=(db.bills||[]).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+ const total=all.reduce((s,x)=>s+billAmount(x),0);
+ const paidTotal=all.reduce((s,x)=>s+paidAmount(x),0);
+ const dueTotal=all.reduce((s,x)=>s+dueAmount(x),0);
+ const fullyPaid=all.filter(x=>dueAmount(x)===0&&billAmount(x)>0);
+ const unpaid=all.filter(x=>dueAmount(x)>0);
+ document.getElementById("billTotal").innerHTML=stat("সকল মাসের মোট বিল",money(total))+stat("মোট বিলের সংখ্যা",all.length);
+ document.getElementById("billPaymentSummary").innerHTML=stat("✓ পেয়েছি",money(paidTotal))+stat("✕ পাইনি",money(dueTotal))+stat("সম্পূর্ণ পরিশোধিত বিল",fullyPaid.length)+stat("বাকি / আংশিক বিল",unpaid.length);
+ const filter=document.getElementById("billStatusFilter")?.value||"all";
+ const shown=all.filter(x=>filter==="all"||(filter==="paid"?dueAmount(x)===0&&billAmount(x)>0:dueAmount(x)>0));
+ dwdBillRows.innerHTML=shown.map(x=>{
+  const i=db.bills.indexOf(x),sum=billAmount(x),paid=paidAmount(x),due=dueAmount(x),fully=due===0&&sum>0;
+  return "<tr><td>"+esc(x.date||"—")+"</td><td>"+esc(x.place||"—")+"</td><td>"+esc(personLabel(x.personCode))+"</td><td>"+esc(x.goingTransport||x.transport||"—")+" · "+money(x.goingFare??x.travel)+" / "+esc(x.returnTransport||"—")+" · "+money(x.returnFare)+"</td><td>"+money(num(x.goingFare??x.travel)+num(x.returnFare))+"</td><td>"+money(x.food)+"</td><td>"+money(x.other)+"</td><td><b>"+money(sum)+"</b></td><td><b style='color:#15803d'>"+money(paid)+"</b></td><td><b style='color:"+(due>0?"#dc2626":"#15803d")+"'>"+money(due)+"</b></td><td><span class='payment-mark "+(fully?"paid":paid>0?"partial":"unpaid")+"'>"+(fully?"✓ পেয়েছি":"✕ পাইনি")+"</span><br><small>"+(x.paymentDate?"সর্বশেষ: "+esc(x.paymentDate):"")+"</small></td><td><button class='"+(fully?"secondary":"green")+"' onclick='"+(fully?"toggleBillPaid":"addBillPayment")+"("+i+")'>"+(fully?"বাকি করুন":"＋ পেমেন্ট যোগ")+"</button></td><td><button class='secondary' onclick='editBillRecord("+i+")'>✏️ এডিট</button> <button class='danger' onclick=\"del('bills',"+i+",renderBills)\">মুছুন</button></td></tr>";
+ }).join("")||"<tr><td colspan='13' style='text-align:center;padding:18px'>কোনো বিলের রেকর্ড নেই।</td></tr>";
+}
+if(typeof dwdBillOriginalRender==="function"){
+ window.renderBills=function(){if(dwdShowAllBills)dwdRenderAllBills();else dwdBillOriginalRender();};
+}
+if(dwdBillMonth&&dwdBillRows&&!document.getElementById("dwdAllBillsToggle")){
+ const toggle=document.createElement("button");
+ toggle.id="dwdAllBillsToggle";toggle.type="button";toggle.className="secondary";
+ toggle.textContent="সব মাসের বিল দেখুন";toggle.style.marginLeft="8px";
+ toggle.addEventListener("click",function(){
+  dwdShowAllBills=!dwdShowAllBills;
+  toggle.textContent=dwdShowAllBills?"নির্বাচিত মাসের বিল দেখুন":"সব মাসের বিল দেখুন";
+  window.renderBills();
+ });
+ dwdBillMonth.parentElement.appendChild(toggle);
+}
+
 })();
