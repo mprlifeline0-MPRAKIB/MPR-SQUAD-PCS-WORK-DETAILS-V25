@@ -84,4 +84,98 @@ if(dwdBillMonth&&dwdBillRows&&!document.getElementById("dwdAllBillsToggle")){
  dwdBillMonth.parentElement.appendChild(toggle);
 }
 
+
+// Restrict transport presets and allow a real custom transport name.
+function dwdTransportFields(formId){
+ const form=document.getElementById(formId);if(!form||form.dataset.dwdTransport==="1")return;
+ form.dataset.dwdTransport="1";
+ ["goingTransport","returnTransport"].forEach(name=>{
+  const sel=form.elements[name];if(!sel)return;
+  const promptText=sel.options[0]?.textContent||"পরিবহন নির্বাচন করুন";
+  sel.innerHTML="";
+  const first=new Option(promptText,"");sel.add(first);
+  [["রিকশা","🛺 রিকশা"],["CNG","🚕 CNG"],["মোটরসাইকেল","🏍️ মোটরসাইকেল"],["প্রাইভেট কার","🚘 প্রাইভেট কার"],["অন্যান্য","✍️ অন্যান্য"]].forEach(([v,t])=>sel.add(new Option(t,v)));
+  const custom=document.createElement("input");custom.type="text";custom.className="dwd-transport-custom";custom.placeholder="অন্যান্য পরিবহনের নাম লিখুন";custom.hidden=true;custom.style.marginTop="7px";
+  sel.insertAdjacentElement("afterend",custom);
+  const update=()=>{custom.hidden=sel.value!=="অন্যান্য";if(!custom.hidden)custom.focus()};
+  sel.addEventListener("change",update);
+  form.addEventListener("submit",e=>{
+   if(sel.value==="অন্যান্য"){
+    const value=custom.value.trim();
+    if(!value){e.preventDefault();e.stopImmediatePropagation();alert("অন্যান্য পরিবহনের নাম লিখুন।");custom.focus();return;}
+    const option=new Option(value,value);sel.add(option);sel.value=value;
+   }
+  },true);
+ });
+}
+dwdTransportFields("billForm");
+dwdTransportFields("personExpenseForm");
+
+// Add proper edit forms for duty, personal-expense, salary/mobile-bill/bonus and custom records.
+const dwdEditorFields={
+ duties:[["date","তারিখ","date"],["status","অবস্থা","select:ডিউটি|ডে অফ"],["start","শুরুর সময়","time"],["end","শেষের সময়","time"],["place","কাজের স্থান","text"],["personCode","সংশ্লিষ্ট ব্যক্তি","person"]],
+ person:[["date","তারিখ","date"],["time","সময়","time"],["place","স্থান","text"],["goingTransport","যাওয়ার মাধ্যম","transport"],["goingFare","যাওয়ার ভাড়া","number"],["returnTransport","আসার মাধ্যম","transport"],["returnFare","আসার ভাড়া","number"],["foodTime","খাবারের সময়","select:দিন|রাত"],["food","খাবার খরচ","number"],["other","অন্যান্য খরচ","number"],["reason","খরচের কারণ","text"],["details","বিস্তারিত","textarea"],["payerCode","কে টাকা দিয়েছেন","person"],["receivedStatus","পাওয়ার অবস্থা","select:পেয়েছি|পাইনি"],["note","মন্তব্য","textarea"]],
+ pay:[["date","তারিখ","date"],["type","ধরন","select:বেতন|মোবাইল বিল|বোনাস"],["amount","টাকার পরিমাণ","number"],["place","কাজের স্থান","text"],["personCode","সংশ্লিষ্ট ব্যক্তি","person"],["receivedStatus","টাকা পাওয়ার অবস্থা","select:পেয়েছি|পাইনি"],["note","মন্তব্য","textarea"]],
+ custom:[["title","ক্যাটাগরি / শিরোনাম","text"],["date","তারিখ","date"],["place","কাজের স্থান","text"],["personCode","সংশ্লিষ্ট ব্যক্তি","person"],["details","বিস্তারিত তথ্য","textarea"]]
+};
+function dwdEditorSelect(field,value){
+ let options=[];
+ if(field==="person")options=(db.people||[]).map(p=>[p.code,p.name+" ("+p.code+")"]);
+ else if(field.startsWith("select:"))options=field.slice(7).split("|").map(x=>[x,x]);
+ else if(field==="transport")options=["রিকশা","CNG","মোটরসাইকেল","প্রাইভেট কার","অন্যান্য"].map(x=>[x,x]);
+ if(value&&!options.some(x=>x[0]===String(value)))options.push([String(value),String(value)]);
+ return '<select name="field" class="dwd-edit-input"><option value="">— নির্বাচন করুন —</option>'+options.map(x=>'<option value="'+esc(x[0])+'" '+(String(value??"")===x[0]?"selected":"")+'>'+esc(x[1])+'</option>').join("")+'</select>';
+}
+function dwdOpenEditor(group,index){
+ const personRecord=group==="person";
+ const target=personRecord?db.people[activePerson]?.records?.[index]:db[group]?.[index];
+ if(!target)return;
+ const defs=dwdEditorFields[group];if(!defs)return;
+ const overlay=document.createElement("div");overlay.id="dwdRecordEditor";
+ overlay.style.cssText="position:fixed;inset:0;background:#0009;z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px";
+ const form=document.createElement("form");form.style.cssText="background:#fff;color:#172536;border-radius:16px;padding:16px;width:min(560px,100%);max-height:90vh;overflow:auto;box-shadow:0 18px 60px #0007";
+ form.innerHTML='<h3 style="margin:0 0 12px">হিসাব সম্পাদনা করুন</h3><div class="dwd-edit-grid"></div><div style="display:flex;gap:8px;margin-top:14px"><button type="submit" class="green">পরিবর্তন সংরক্ষণ</button><button type="button" class="secondary" id="dwdEditCancel">বাতিল</button></div>';
+ const grid=form.querySelector(".dwd-edit-grid");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px";
+ defs.forEach(([key,label,type])=>{
+  const wrap=document.createElement("label");wrap.style.cssText="display:block;color:#334155;font-size:13px";
+  let input;
+  if(type==="person"||type==="transport"||type.startsWith("select:")){wrap.innerHTML=label;input=document.createElement("span");input.innerHTML=dwdEditorSelect(type,target[key]);wrap.appendChild(input.firstElementChild);input=wrap.lastElementChild;input.name=key;}
+  else {wrap.textContent=label;input=type==="textarea"?document.createElement("textarea"):document.createElement("input");input.name=key;input.type=type==="textarea"?"":type;input.value=target[key]??"";input.style.cssText="display:block;width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;color:#172536;background:#fff";if(type==="textarea")input.rows=2;wrap.appendChild(input);}
+  grid.appendChild(wrap);
+ });
+ overlay.appendChild(form);document.body.appendChild(overlay);
+ const close=()=>overlay.remove();form.querySelector("#dwdEditCancel").onclick=close;
+ overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
+ form.addEventListener("submit",e=>{
+  e.preventDefault();const data=new FormData(form);
+  defs.forEach(([key,,type])=>{const v=data.get(key);target[key]=(type==="number"?(Number(v)||0):(v??""));});
+  if(save()){close();if(group==="person")renderPerson();else if(group==="duties")renderDuty();else if(group==="pay")renderPay();else renderCustom();}
+ });
+}
+window.editDutyRecord=i=>dwdOpenEditor("duties",i);
+window.editPersonRecord=i=>dwdOpenEditor("person",i);
+window.editPayRecord=i=>dwdOpenEditor("pay",i);
+window.editCustomRecord=i=>dwdOpenEditor("custom",i);
+function dwdAddRowEditButtons(containerId,deletePattern,handlerName){
+ const box=document.getElementById(containerId);if(!box)return;
+ box.querySelectorAll("tr").forEach(row=>{
+  const delButton=[...row.querySelectorAll("button")].find(b=>deletePattern.test(b.getAttribute("onclick")||""));
+  if(!delButton||row.querySelector(".dwd-edit-record"))return;
+  const match=(delButton.getAttribute("onclick")||"").match(/\d+/);if(!match)return;
+  const b=document.createElement("button");b.type="button";b.className="secondary dwd-edit-record";b.textContent="✏️ সম্পাদনা";b.style.marginRight="5px";b.onclick=()=>window[handlerName](Number(match[0]));delButton.parentElement.insertBefore(b,delButton);
+ });
+}
+function dwdAddCardEditButtons(containerId,pattern,handlerName){
+ const box=document.getElementById(containerId);if(!box)return;
+ box.querySelectorAll(".card").forEach(card=>{
+  const delButton=[...card.querySelectorAll("button")].find(b=>pattern.test(b.getAttribute("onclick")||""));
+  if(!delButton||card.querySelector(".dwd-edit-record"))return;
+  const match=(delButton.getAttribute("onclick")||"").match(/\d+/);if(!match)return;
+  const b=document.createElement("button");b.type="button";b.className="secondary dwd-edit-record";b.textContent="✏️ সম্পাদনা";b.style.marginRight="5px";b.onclick=()=>window[handlerName](Number(match[0]));delButton.parentElement.insertBefore(b,delButton);
+ });
+}
+for(const [name,after] of [["renderDuty",()=>dwdAddRowEditButtons("dutyRows",/del\('duties'/,"editDutyRecord")],["renderPerson",()=>dwdAddRowEditButtons("personRows",/delPersonRecord/,"editPersonRecord")],["renderPay",()=>dwdAddCardEditButtons("payRows",/togglePayReceived/,"editPayRecord")],["renderCustom",()=>dwdAddCardEditButtons("customRows",/del\('custom'/,"editCustomRecord")]]){
+ const original=window[name];if(typeof original==="function")window[name]=function(...args){const result=original.apply(this,args);after();return result;};
+}
+
 })();
