@@ -50,7 +50,7 @@ jobs:
               if "dwd-completion.js" not in s:
                   parts=s.rsplit("</body>",1)
                   if len(parts)!=2: raise SystemExit(f"Closing body tag missing in {name}")
-                  s=parts[0]+'<script src="dwd-completion.js"></script>\\n</body>'+parts[1]
+                  s=parts[0]+'<script src="dwd-completion.js"></script>\n</body>'+parts[1]
               p.write_text(s,encoding="utf-8")
           # Add APK-sharing support with AndroidX FileProvider.
           p=Path("app/build.gradle.kts")
