@@ -178,4 +178,44 @@ for(const [name,after] of [["renderDuty",()=>dwdAddRowEditButtons("dutyRows",/de
  const original=window[name];if(typeof original==="function")window[name]=function(...args){const result=original.apply(this,args);after();return result;};
 }
 
+
+/* Screenshot-driven contrast and mobile-table repair */
+(function dwdVisualRepair(){
+ const style=document.createElement("style");
+ style.id="dwd-visual-repair";
+ style.textContent=`
+  table tbody tr, table tbody td, table tbody th,
+  #dutyRows tr, #dutyRows td, #dutyRows th,
+  #billRows tr, #billRows td, #billRows th,
+  #personRows tr, #personRows td, #personRows th,
+  #payRows tr, #payRows td, #payRows th,
+  #customRows tr, #customRows td, #customRows th {
+    background-color:#15324d !important;color:#f4f8ff !important;
+    border-color:#355675 !important;opacity:1 !important;
+  }
+  table thead th {background:#214664 !important;color:#fff !important;}
+  .dwd-table-scroll {display:block;max-width:100%;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;border-radius:12px;}
+  .dwd-table-scroll table {min-width:640px;width:max-content;max-width:none;border-collapse:separate;border-spacing:0;}
+  .dwd-table-scroll td,.dwd-table-scroll th {white-space:nowrap;}
+  @media(max-width:480px){.dwd-table-scroll table{min-width:680px;}
+    .dwd-table-scroll td,.dwd-table-scroll th{padding:10px 8px !important;font-size:13px !important;}}
+ `;
+ document.head.appendChild(style);
+ function repairTables(){
+  document.querySelectorAll("table").forEach(table=>{
+   if(table.closest(".dwd-table-scroll"))return;
+   const parent=table.parentElement;if(!parent)return;
+   const wrap=document.createElement("div");wrap.className="dwd-table-scroll";
+   parent.insertBefore(wrap,table);wrap.appendChild(table);
+  });
+ }
+ function removeAccidentalSlashN(){
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const remove=[];let node;
+  while((node=walker.nextNode()))if(node.nodeValue.trim()==="\\n")remove.push(node);
+  remove.forEach(n=>n.remove());
+ }
+ repairTables();removeAccidentalSlashN();
+})();
 })();
