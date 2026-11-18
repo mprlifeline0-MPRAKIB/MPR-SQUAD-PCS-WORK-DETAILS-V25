@@ -1,17 +1,17 @@
-
-name: Build MPR SQUAD PCS v2.9 APK
+name: Build MPR SQUAD PCS v2.9 + Two Person Ledger APK
 
 on:
   workflow_dispatch:
   push:
     paths:
       - 'MPR-SQUAD-PCS-v2.9-admin-social-links.zip'
+      - 'DWD-TWO-PERSON-EXPENSES.js'
+      - 'scripts/inject-dwd-two-person-ledger.py'
       - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,10 +26,23 @@ jobs:
         run: |
           unzip -o MPR-SQUAD-PCS-v2.9-admin-social-links.zip -d .
 
+      - name: Upload original source ZIP for integration inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwd-original-source-for-integration
+          path: MPR-SQUAD-PCS-v2.9-admin-social-links.zip
+          if-no-files-found: error
+
       - name: Set app version
         run: |
           sed -i 's/versionName = "2.8"/versionName = "2.9"/' MPR-SQUAD-PCS-v2.9-package/android/app/build.gradle.kts
           sed -i 's/v2.6/v2.9/g' MPR-SQUAD-PCS-v2.9-package/android/app/src/main/assets/index.html
+
+      - name: Validate two-person ledger JavaScript syntax
+        run: node --check DWD-TWO-PERSON-EXPENSES.js
+
+      - name: Inject DWD two-person equal expense ledger
+        run: python3 scripts/inject-dwd-two-person-ledger.py
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -43,5 +56,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MPR-SQUAD-PCS-v2.9-debug-apk
+          name: MPR-SQUAD-PCS-v2.9-two-person-debug-apk
           path: MPR-SQUAD-PCS-v2.9-package/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
