@@ -26,6 +26,13 @@ jobs:
         run: |
           unzip -o MPR-SQUAD-PCS-v2.9-admin-social-links.zip -d .
 
+      - name: Upload original source ZIP for integration inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwd-original-source-for-integration
+          path: MPR-SQUAD-PCS-v2.9-admin-social-links.zip
+          if-no-files-found: error
+
       - name: Set app version
         run: |
           sed -i 's/versionName = "2.8"/versionName = "2.9"/' MPR-SQUAD-PCS-v2.9-package/android/app/build.gradle.kts
