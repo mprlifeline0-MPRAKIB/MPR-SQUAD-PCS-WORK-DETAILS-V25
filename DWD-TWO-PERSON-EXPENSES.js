@@ -1,3 +1,4 @@
+/* Build validation: node --check is run before APK packaging. */
 /* MPR SQUAD DWD: same-device, two-person 50:50 expense allocation. Personal entries must be included in the entered app total. */
 (()=>{"use strict";
 const KEY="mpr_dwd_two_person_ledger_v1", money=n=>"৳"+(Number(n)||0).toLocaleString("en-BD",{maximumFractionDigits:2}), esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])), num=v=>Math.max(0,Number(v)||0);
