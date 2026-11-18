@@ -31,6 +31,9 @@ jobs:
           sed -i 's/versionName = "2.8"/versionName = "2.9"/' MPR-SQUAD-PCS-v2.9-package/android/app/build.gradle.kts
           sed -i 's/v2.6/v2.9/g' MPR-SQUAD-PCS-v2.9-package/android/app/src/main/assets/index.html
 
+      - name: Validate two-person ledger JavaScript syntax
+        run: node --check DWD-TWO-PERSON-EXPENSES.js
+
       - name: Inject DWD two-person equal expense ledger
         run: python3 scripts/inject-dwd-two-person-ledger.py
 
