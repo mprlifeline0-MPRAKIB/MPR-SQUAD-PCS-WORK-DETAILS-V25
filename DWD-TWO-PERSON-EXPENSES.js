@@ -23,4 +23,4 @@ $("add").onclick=()=>{let amount=num($("amount").value);if(!amount){alert("স�
 $("pay").onclick=()=>{let amount=num($("paid").value);if(!amount){alert("সঠিক পরিশোধের পরিমাণ লিখুন।");return}state.payments.push({who:+$("payer").value,amount,date:new Date().toISOString()});$("paid").value="";save();render()};
 $("export").onclick=()=>{let blob=new Blob([JSON.stringify({app:"MPR SQUAD DWD Two Person Ledger",version:1,exportedAt:new Date().toISOString(),data:state},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="MPR-DWD-two-person-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 $("reset").onclick=()=>{if(confirm("এই অতিরিক্ত হিসাব মুছবেন? আগে JSON ব্যাকআপ নিন।")){state={names:["ব্যক্তি ১","ব্যক্তি ২"],total:"",items:[],payments:[]};save();render()}};save();
-})();
+})();\n/* Source archive inspection artifact enabled for integration work. */\n
