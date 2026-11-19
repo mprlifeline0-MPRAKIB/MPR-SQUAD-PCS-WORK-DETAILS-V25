@@ -329,4 +329,46 @@ for(const [name,after] of [["renderDuty",()=>dwdAddRowEditButtons("dutyRows",/de
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
  `;
  document.head.appendChild(style);
-})(); 
+})();
+
+/* DWD stability: deterministic Android Back navigation */
+(function dwdAndroidBackNavigation(){
+  if (window.__dwdBackHandlerInstalled) return;
+  window.__dwdBackHandlerInstalled = true;
+  window.appBackFromAndroid = function(){
+    const menu = document.getElementById("menu");
+    if (menu && menu.classList.contains("open")) {
+      menu.classList.remove("open");
+      return true;
+    }
+    const searchPanel = document.getElementById("dwdSearchPanel");
+    if (searchPanel && searchPanel.classList.contains("open")) {
+      searchPanel.classList.remove("open");
+      return true;
+    }
+    const visibleDialog = [...document.querySelectorAll("dialog[open],.modal.open,.modal.show,[role='dialog'].open")]
+      .filter(el => el.getClientRects().length);
+    if (visibleDialog.length) {
+      const dialog = visibleDialog[visibleDialog.length - 1];
+      if (typeof dialog.close === "function" && dialog.tagName === "DIALOG") dialog.close();
+      else {
+        dialog.classList.remove("open","show");
+        dialog.setAttribute("aria-hidden","true");
+      }
+      return true;
+    }
+    const active = document.querySelector(".screen.active");
+    if (active && active.id !== "homeScreen") {
+      if (typeof window.goHome === "function") window.goHome();
+      else {
+        const home = document.getElementById("homeScreen");
+        if (home) {
+          document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s === home));
+          home.scrollIntoView({block:"start"});
+        }
+      }
+      return true;
+    }
+    return false;
+  };
+})();
