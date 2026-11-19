@@ -30,6 +30,12 @@ class MainActivity : Activity() {
         setContentView(web)
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        web.isVerticalScrollBarEnabled = true
+        web.isHorizontalScrollBarEnabled = false
+        web.overScrollMode = android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS
+        web.isFocusable = true
+        web.isFocusableInTouchMode = true
+        web.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         web.settings.allowFileAccess = true
         web.settings.allowContentAccess = true
         web.settings.javaScriptCanOpenWindowsAutomatically = true
@@ -113,10 +119,12 @@ class MainActivity : Activity() {
 
     override fun onBackPressed() {
         if (!::web.isInitialized) { super.onBackPressed(); return }
-        web.evaluateJavascript("(document.querySelector('.screen.active')?.id || 'homeScreen')") { value ->
-            val active = value?.trim('"') ?: "homeScreen"
-            if (active != "homeScreen") {
-                web.evaluateJavascript("window.appBackFromAndroid ? window.appBackFromAndroid() : false", null)
+        // Let the web app close an open menu/dialog or return to Home first.
+        web.evaluateJavascript(
+            "(function(){try{return window.appBackFromAndroid ? !!window.appBackFromAndroid() : false;}catch(e){return false;}})()"
+        ) { result ->
+            val handled = result == "true"
+            if (handled) {
                 lastHomeBackAt = 0L
             } else {
                 val now = SystemClock.elapsedRealtime()
