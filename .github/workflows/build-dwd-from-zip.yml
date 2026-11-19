@@ -56,7 +56,7 @@ jobs:
           p=Path("app/build.gradle.kts")
           s=p.read_text(encoding="utf-8")
           if 'androidx.core:core' not in s:
-              s += '\n\ndependencies { implementation("androidx.core:core:1.13.1") }\n'
+              s += '\n\ndependencies { implementation("androidx.core:core:1.13.1") { exclude(group = "androidx.lifecycle", module = "lifecycle-runtime"); exclude(group = "androidx.profileinstaller", module = "profileinstaller"); exclude(group = "androidx.concurrent", module = "concurrent-futures") } }\n'
               p.write_text(s,encoding="utf-8")
           x=Path("app/src/main/res/xml")
           x.mkdir(parents=True,exist_ok=True)
