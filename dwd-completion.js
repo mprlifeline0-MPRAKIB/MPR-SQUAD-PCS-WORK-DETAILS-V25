@@ -218,4 +218,44 @@ for(const [name,after] of [["renderDuty",()=>dwdAddRowEditButtons("dutyRows",/de
  }
  repairTables();removeAccidentalSlashN();
 })();
+
+/* DWD v4.4.1: strict, rollback-safe JSON restore */
+(function dwdHardenRestore(){
+ const validList=(v)=>Array.isArray(v)&&v.every(x=>x&&typeof x==="object"&&!Array.isArray(x));
+ window.restore=function(e){
+  const input=e?.target, file=input?.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+   let incoming;
+   try{
+    incoming=JSON.parse(String(reader.result||""));
+    const required=["duties","people","bills","pay","custom"];
+    if(!incoming||typeof incoming!=="object"||Array.isArray(incoming)||
+       !required.every(k=>validList(incoming[k]))||
+       (incoming.stockNotes!==undefined&&!validList(incoming.stockNotes))||
+       (incoming.people||[]).some(p=>p.records!==undefined&&!validList(p.records))||
+       (incoming.bills||[]).some(b=>["goingFare","travel","returnFare","food","other","amountPaid"].some(k=>b[k]!==undefined&&(!Number.isFinite(Number(b[k]))||Number(b[k])<0))))
+      throw new Error("invalid backup");
+   }catch(err){alert("ব্যাকআপ ফাইলটি অসম্পূর্ণ বা সঠিক DWD JSON নয়। বর্তমান তথ্য অপরিবর্তিত রাখা হয়েছে।");if(input)input.value="";return;}
+   if(!confirm("বর্তমান ডেটা প্রতিস্থাপন করে যাচাইকৃত ব্যাকআপ ফিরিয়ে আনবেন?")){if(input)input.value="";return;}
+   const previous=db,previousRaw=localStorage.getItem("mpr_squad_daily_work_details_v1");
+   db=incoming;
+   const saved=save();
+   if(!saved){
+    db=previous;
+    try{if(previousRaw===null)localStorage.removeItem("mpr_squad_daily_work_details_v1");else localStorage.setItem("mpr_squad_daily_work_details_v1",previousRaw);}catch(_){}
+    alert("ব্যাকআপ সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে রাখা হয়েছে।");
+    if(input)input.value="";
+    return;
+   }
+   alert("ব্যাকআপ সফলভাবে রিস্টোর হয়েছে।");
+   if(input)input.value="";
+   goHome();
+  };
+  reader.onerror=()=>{alert("ব্যাকআপ ফাইল পড়া যায়নি।");if(input)input.value="";};
+  reader.readAsText(file);
+ };
+})();
+
 })();
