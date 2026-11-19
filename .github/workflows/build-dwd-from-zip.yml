@@ -107,9 +107,7 @@ jobs:
               if needle not in s: raise SystemExit("Could not locate Android share bridge insertion point")
               s=s.replace(needle,bridge+needle)
               p.write_text(s,encoding="utf-8")
-          # Repair database startup safely and enable native WebView scrolling.
-          python3 - <<'PYRECOVER'
-          from pathlib import Path
+          # Patch the HTML database initializer and Android WebView scroll settings.
           old = '''let db=JSON.parse(localStorage.getItem(KEY)||'{"duties":[],"bills":[],"people":[],"pay":[],"custom":[],"stockNotes":[]}');'''
           new = '''let db;
           const DWD_DEFAULT_DB={duties:[],bills:[],people:[],pay:[],custom:[],stockNotes:[]};
@@ -125,21 +123,20 @@ jobs:
           } catch(err) {
             try { const raw=localStorage.getItem(KEY); if(raw) localStorage.setItem(KEY+'_recovery_'+Date.now(),raw); localStorage.setItem(KEY,JSON.stringify(DWD_DEFAULT_DB)); } catch(storageErr) {}
             db={...DWD_DEFAULT_DB};
-            window.addEventListener('load',()=>setTimeout(()=>alert('আগের সংরক্ষিত তথ্যের ফাইলে সমস্যা পাওয়া গেছে। মূল ফাইলের Recovery কপি রাখা হয়েছে; অ্যাপ নিরাপদ খালি ডেটা দিয়ে চালু হয়েছে।'),400));
+            window.addEventListener('load',()=>setTimeout(()=>alert('আগের সংরক্ষিত তথ্যের ফাইলে সমস্যা পাওয়া গেছে। Recovery কপি রাখা হয়েছে।'),400));
           }'''
           for name in ('index.html','app/src/main/assets/index.html'):
               p=Path(name)
-              if not p.exists(): continue
-              s=p.read_text(encoding='utf-8')
-              if old in s: p.write_text(s.replace(old,new,1),encoding='utf-8')
-              elif 'DWD_DEFAULT_DB' not in s: raise SystemExit('Database initialization pattern not found in '+name)
+              if p.exists():
+                  html=p.read_text(encoding='utf-8')
+                  if old in html: p.write_text(html.replace(old,new,1),encoding='utf-8')
+                  elif 'DWD_DEFAULT_DB' not in html: raise SystemExit('Database initializer not found in '+name)
           p=Path('app/src/main/java/com/mprlifeline/pcs/MainActivity.kt')
-          s=p.read_text(encoding='utf-8')
+          kotlin=p.read_text(encoding='utf-8')
           needle='        web.settings.javaScriptEnabled = true'
-          if 'web.isVerticalScrollBarEnabled = true' not in s:
-              s=s.replace(needle,needle+'\n        web.isVerticalScrollBarEnabled = true\n        web.overScrollMode = android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS\n        web.isNestedScrollingEnabled = true')
-              p.write_text(s,encoding='utf-8')
-          PYRECOVER
+          if 'web.isVerticalScrollBarEnabled = true' not in kotlin and needle in kotlin:
+              kotlin=kotlin.replace(needle,needle+'\n        web.isVerticalScrollBarEnabled = true\n        web.overScrollMode = android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS')
+              p.write_text(kotlin,encoding='utf-8')
           # Expose the native Android share sheet for JSON/text backups.
           if "fun shareText(" not in s:
               needle="        @JavascriptInterface fun printHtml(html: String) {"
