@@ -78,7 +78,12 @@ jobs:
           if "com.mprlifeline.pcs.fileprovider" not in s:
               s=s.replace("</application>",provider+"    </application>")
               p.write_text(s,encoding="utf-8")
+          # Use the maintained root Activity source so navigation/scroll fixes
+          # are actually included in the APK (the source ZIP may be older).
+          root_activity=Path("MainActivity.kt")
           p=Path("app/src/main/java/com/mprlifeline/pcs/MainActivity.kt")
+          if root_activity.exists():
+              p.write_text(root_activity.read_text(encoding="utf-8"),encoding="utf-8")
           s=p.read_text(encoding="utf-8")
           if "fun shareAppApk()" not in s:
               s=s.replace("import android.widget.Toast","import android.widget.Toast\nimport androidx.core.content.FileProvider\nimport java.io.File")
