@@ -208,6 +208,72 @@ jobs:
           PYCODE
           node --check /tmp/dwd-inline.js
 
+      - name: Audit extracted app structure and data flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          from collections import Counter
+          import re, json
+          html=Path("index.html").read_text(encoding="utf-8")
+          js=Path("app.js").read_text(encoding="utf-8")
+          extra=Path("dwd-completion.js").read_text(encoding="utf-8")
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.scripts=[]; self.forms=[]; self.current_form=None
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if "id" in a: self.ids.append(a["id"])
+                  if tag=="script": self.scripts.append(a.get("src","[inline]"))
+                  if tag=="form":
+                      self.current_form={"id":a.get("id","(no id)"),"fields":[]}; self.forms.append(self.current_form)
+                  if self.current_form and tag in ("input","select","textarea","button"):
+                      self.current_form["fields"].append({"tag":tag,"id":a.get("id"),"name":a.get("name"),"type":a.get("type")})
+              def handle_endtag(self,tag):
+                  if tag=="form": self.current_form=None
+          p=Audit(); p.feed(html)
+          dup=[k for k,v in Counter(p.ids).items() if v>1]
+          ids=set(p.ids)
+          refs=set(re.findall(r"""(?:getElementById\s*\(\s*|querySelector\s*\(\s*['"]#)([A-Za-z][\w:-]*)""",js+"\n"+extra))
+          missing=sorted(x for x in refs-ids if not x.startswith("dwd"))
+          funcs=sorted(set(re.findall(r"(?:function\s+|(?:window\.)?)([A-Za-z_$][\w$]*)\s*=\s*function|function\s+([A-Za-z_$][\w$]*)\s*\(",js)))
+          funcs=[a or b for a,b in funcs]
+          checks={
+            "root_index_html":Path("index.html").is_file(),
+            "app_js":Path("app.js").is_file(),
+            "completion_js":Path("dwd-completion.js").is_file(),
+            "database_key_present":bool(re.search(r"localStorage\.(?:getItem|setItem)\s*\(\s*KEY",js)),
+            "database_save_function":bool(re.search(r"function\s+save\s*\(|(?:const|let|var)\s+save\s*=",js)),
+            "backup_restore_hooks":bool(re.search(r"function\s+restore\s*\(|(?:window\.)?restore\s*=",js)),
+            "pdf_or_print_hooks":bool(re.search(r"printHtml|jsPDF|window\.print",js+"\n"+extra)),
+            "android_back_hook": "appBackFromAndroid" in extra,
+            "vertical_scroll_css":bool(re.search(r"overflow-y\s*:\s*(?:auto|scroll)",html+"\n"+extra)),
+          }
+          lines=["DWD SOURCE AUDIT — generated in GitHub Actions","",f"HTML IDs: {len(p.ids)}",f"Duplicate IDs: {', '.join(dup) if dup else 'none'}",f"Forms found: {len(p.forms)}",f"Script load order: {' -> '.join(p.scripts)}","", "CHECKS:"]
+          lines += [f"- {'PASS' if v else 'REVIEW'}: {k}" for k,v in checks.items()]
+          lines += ["", "FORM INVENTORY:"]
+          for form in p.forms:
+              lines.append(f"- {form['id']}: {len(form['fields'])} controls")
+              for field in form["fields"]:
+                  lines.append(f"  • {field['tag']} id={field['id']} name={field['name']} type={field['type']}")
+          lines += ["", "POTENTIAL STATIC ISSUES:"]
+          lines.append("- Duplicate HTML IDs: "+(", ".join(dup) if dup else "none detected"))
+          lines.append("- Selector IDs not found in static HTML: "+(", ".join(missing) if missing else "none detected; dynamically created IDs are not exhaustively validated"))
+          lines += ["", "LIMITATION: Static source audit only. It does not prove runtime navigation, calculations, persistence, restore, PDF rendering, or Android device behavior."]
+          Path("DWD-SOURCE-AUDIT-BN.txt").write_text("\n".join(lines)+"\n",encoding="utf-8")
+          print("\n".join(lines))
+          if dup: raise SystemExit("Duplicate HTML IDs detected")
+          PY
+      - name: Upload source audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: DWD-v4.4-source-audit
+          path: DWD-SOURCE-AUDIT-BN.txt
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
