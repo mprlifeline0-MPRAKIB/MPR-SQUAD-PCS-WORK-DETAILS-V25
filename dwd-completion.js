@@ -259,3 +259,24 @@ for(const [name,after] of [["renderDuty",()=>dwdAddRowEditButtons("dutyRows",/de
 })();
 
 })();
+
+
+/* DWD v4.4.2: restore document-level vertical scrolling in Android WebView */
+(function dwdMobileScrollRepair(){
+ const style=document.createElement('style');
+ style.id='dwd-mobile-scroll-repair';
+ style.textContent=`
+  html{height:auto!important;min-height:100%!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior-y:auto!important;touch-action:pan-y!important}
+  body{height:auto!important;min-height:100dvh!important;overflow-x:hidden!important;overflow-y:visible!important;position:relative!important;touch-action:pan-y!important}
+  body>main,main{height:auto!important;min-height:calc(100dvh - 64px)!important;max-height:none!important;overflow:visible!important;touch-action:pan-y!important}
+  .screen,.screen.active{height:auto!important;min-height:calc(100dvh - 64px)!important;max-height:none!important;overflow:visible!important;touch-action:pan-y!important}
+  .card,.formgrid,.grid,.foldergrid{max-height:none}
+  .menu.open .drawer{height:100dvh!important;max-height:100dvh!important;overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important}
+  input,textarea,select,button{touch-action:manipulation}
+ `;
+ document.head.appendChild(style);
+ const normalize=()=>{document.documentElement.style.overflowY='auto';document.body.style.overflowY='visible';};
+ normalize();
+ document.addEventListener('visibilitychange',normalize,{passive:true});
+ document.addEventListener('click',e=>{if(e.target.closest('button,[onclick]'))setTimeout(normalize,0)},{passive:true});
+})();
