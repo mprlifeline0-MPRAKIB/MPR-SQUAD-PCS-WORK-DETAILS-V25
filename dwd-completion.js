@@ -280,3 +280,53 @@ for(const [name,after] of [["renderDuty",()=>dwdAddRowEditButtons("dutyRows",/de
  document.addEventListener('visibilitychange',normalize,{passive:true});
  document.addEventListener('click',e=>{if(e.target.closest('button,[onclick]'))setTimeout(normalize,0)},{passive:true});
 })();
+
+
+
+/* DWD responsive layout hardening: narrow phones, tablets and landscape */
+(function dwdResponsiveHardening(){
+ if(document.getElementById('dwd-responsive-hardening'))return;
+ const style=document.createElement('style');
+ style.id='dwd-responsive-hardening';
+ style.textContent=`
+  *,*::before,*::after{box-sizing:border-box}
+  html{width:100%;max-width:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{width:100%;max-width:100%;margin:0!important;overflow-x:hidden!important}
+  main{width:100%;max-width:1050px;margin-inline:auto;padding-inline:clamp(10px,3vw,18px)!important}
+  .screen,.card,.grid,.row,.formgrid{min-width:0;max-width:100%}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .row{flex-wrap:wrap}
+  img,svg,video,canvas{max-width:100%;height:auto}
+  input,select,textarea{max-width:100%;min-width:0}
+  button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  table{max-width:none}
+  .dwd-table-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
+  @media(max-width:600px){
+   main{padding:10px 10px calc(30px + env(safe-area-inset-bottom))!important}
+   .grid{grid-template-columns:minmax(0,1fr)!important;gap:9px}
+   .card{padding:12px;margin:9px 0;border-radius:13px}
+   .row{gap:7px}
+   .row>*{min-width:0;max-width:100%}
+   .formgrid{grid-template-columns:minmax(0,1fr)!important}
+   input:not([type=checkbox]):not([type=radio]),select,textarea{width:100%;min-height:42px;font-size:16px}
+   button{min-height:40px}
+   h1{font-size:clamp(21px,6vw,30px)}
+   h2{font-size:clamp(18px,5vw,24px)}
+   .dwd-table-scroll table{min-width:680px}
+   #menu .drawer{width:min(88vw,340px);max-width:88vw}
+  }
+  @media(max-width:380px){
+   main{padding-inline:8px!important}
+   .card{padding:10px}
+   .grid{gap:7px}
+   .dwd-table-scroll table{min-width:640px}
+   button{font-size:14px}
+  }
+  @media(orientation:landscape) and (max-height:500px){
+   .screen{min-height:auto!important}
+   #menu .drawer{max-height:100dvh;overflow-y:auto}
+  }
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+ `;
+ document.head.appendChild(style);
+})(); 
