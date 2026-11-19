@@ -9,6 +9,10 @@ if html is None:
 if html is None:
     raise SystemExit("ERROR: Android app/src/main/assets/index.html not found.")
 source = html.read_text(encoding="utf-8")
+required = ["let db=", "function billAmount(", "function inMonth(", "function renderFolders(", "function save(", "personFolders"]
+missing = [token for token in required if token not in source]
+if missing:
+    raise SystemExit("ERROR: DWD source schema changed; missing required hooks: " + ", ".join(missing))
 if 'id="dwdTwoPersonSharePanel"' not in source:
     anchor = '<div id="personFolders" class="foldergrid"></div>'
     if source.count(anchor) != 1:
@@ -60,13 +64,19 @@ function renderTwoPersonShare(){
   const bills=(db.bills||[]).filter(b=>inMonth(b.date,month));
   const total=bills.reduce((sum,b)=>sum+billAmount(b),0);
   const a=dwdPersonExpenseTotal(p1,month),b=dwdPersonExpenseTotal(p2,month),personal=a+b,joint=total-personal;
+  if(!Number.isFinite(total)||!Number.isFinite(a)||!Number.isFinite(b)||total<0||a<0||b<0){
+    formula.textContent="সতর্কতা: বিল বা ব্যক্তিগত খরচের রেকর্ডে অবৈধ সংখ্যা রয়েছে। হিসাব যাচাই করুন।";out.innerHTML="";return;
+  }
   if(joint < -0.005){
     out.innerHTML=stat("মোট বিল / খরচ",money(total))+stat(p1.name+" ব্যক্তিগত খরচ",money(a))+stat(p2.name+" ব্যক্তিগত খরচ",money(b))+stat("ব্যক্তিগত খরচের যোগফল",money(personal));
     formula.textContent="সতর্কতা: দুই ব্যক্তির ব্যক্তিগত খরচের যোগফল মূল বিলের মোট খরচের চেয়ে বেশি। মূল বিলের রেকর্ড যাচাই না করা পর্যন্ত ৫০:৫০ ভাগ দেখানো হচ্ছে না।";return;
   }
-  const shared=Math.max(0,joint),half=shared/2,share1=a+half,share2=b+half;
+  const cents=n=>Math.round((n+Number.EPSILON)*100);
+  const totalC=cents(total),aC=cents(a),bC=cents(b),sharedC=totalC-aC-bC;
+  const shared=sharedC/100,halfC=Math.floor(sharedC/2),half=halfC/100,odd=sharedC%2;
+  const share1C=aC+halfC+odd,share2C=bC+halfC,share1=share1C/100,share2=share2C/100;
   out.innerHTML=stat("মোট খরচ (বিল)",money(total))+stat("ব্যক্তি ১-এর ব্যক্তিগত খরচ",money(a))+stat("ব্যক্তি ২-এর ব্যক্তিগত খরচ",money(b))+stat("বাদ দেওয়ার পর যৌথ খরচ",money(shared))+stat(p1.name+"-এর মোট অংশ",money(share1))+stat(p2.name+"-এর মোট অংশ",money(share2));
-  formula.textContent="হিসাব: "+money(total)+" − "+money(a)+" − "+money(b)+" = "+money(shared)+" যৌথ খরচ। যৌথ খরচের ৫০% = "+money(half)+" করে। "+p1.name+" = "+money(a)+" + "+money(half)+" = "+money(share1)+"; "+p2.name+" = "+money(b)+" + "+money(half)+" = "+money(share2)+". যাচাই: দুইজনের অংশের যোগফল "+money(share1+share2)+"।";
+  formula.textContent="হিসাব: "+money(total)+" − "+money(a)+" − "+money(b)+" = "+money(shared)+" যৌথ খরচ। পয়সার অঙ্ক বিজোড় হলে ১ পয়সা ব্যক্তি ১-এর অংশে যোগ হবে। "+p1.name+" = "+money(a)+" + "+money(share1-a)+" = "+money(share1)+"; "+p2.name+" = "+money(b)+" + "+money(share2-b)+" = "+money(share2)+". যাচাই: দুইজনের অংশের যোগফল "+money(share1+share2)+"।";
 }
 const dwdOriginalSave=save;
 save=function(){const ok=dwdOriginalSave();if(ok)renderTwoPersonShare();return ok;};
